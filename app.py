@@ -94,10 +94,10 @@ client = OpenAI(
     base_url="https://api.deepinfra.com/v1/openai",
 )
 
-st.title("DeepInfra OCR-1B - Extract Markdown Information")
+st.title("DeepInfra Extract Markdown Information")
 
 uploaded_file = st.file_uploader("Upload image", type=["png", "jpg", "jpeg"])
-
+mode = st.selectbox("Chế độ xử lý", ["text", "bill"])
 if uploaded_file:
     st.image(uploaded_file, caption="Uploaded Image", use_container_width=True)
 
@@ -108,29 +108,33 @@ if uploaded_file:
     if st.button("🔍 Extract Markdown Info"):
         with st.spinner("Processing..."):
 
-            response = client.chat.completions.create(
-                model="hoangngochongo3/OCR-3B",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": "Chuyển sang dạng text markdown với các phần tiêu đề, danh sách, bảng và đoạn văn bản từ hình ảnh được cung cấp bên dưới."
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/png;base64,{img_b64}"
-                                }
-                            }
-                        ]
-                    }
-                ]
-            )
+            def ocr_by_deepinfra(image_base64, prompt_mode="text"):
+                if prompt_mode == "bill":
+                    prompt = "<image>\nTrích xuất hóa đơn trong ảnh dưới dạng json"
+                else:
+                    prompt = "<image>\nChuyển sang dạng text markdown"
 
-            extracted_markdown = response.choices[0].message.content
+                response = client.chat.completions.create(
+                    model="hoangngochongo3/OCR-3B",
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": prompt},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {"url": f"data:image/png;base64,{image_base64}"},
+                                },
+                            ],
+                        }
+                    ],
+                    # bạn có thể thêm param generation nếu cần
+                )
+
+                return response.choices[0].message.content
+
+            response_message = ocr_by_deepinfra(img_b64, prompt_mode=mode)
 
         st.subheader("📄 Extracted Markdown:")
-        st.markdown(extracted_markdown)
+        st.markdown(response_message)
 #--trust_remote_code --tokenizer-mode=auto
